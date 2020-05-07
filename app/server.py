@@ -3,6 +3,7 @@
 """
 import asyncio
 from asyncio import transports
+from collections import deque
 
 class ClientProtocol(asyncio.Protocol):
 	login: str
@@ -39,19 +40,34 @@ class ClientProtocol(asyncio.Protocol):
 					self.transport.write(
 						f"Привет, {self.login}".encode()
 					)
+					self.send_history()
+					
 		else:
 			self.send_message(decoded)
 
 	def send_message(self, message):
 		format_string = f"<{self.login}>: {message}"
 		encoded = format_string.encode()
-		#import pdb; pdb.set_trace()	
+
+		# добавляем сообщение к истории сервера 
+		# уже в кодированном виде
+		self.server.add_to_history(encoded_message=encoded)
+
 		for client in self.server.clients:
 			if client.login == self.login: continue
 			client.transport.write(encoded)
-		
-
+	
+	# функция отправки последних сообщений чата
+	def send_history(self):
+		if len(self.server.history) > 0:
+			self.transport.write(
+				f"\nПоследние сообщения чата:\n".encode()
+			)
+			for msg in self.server.history:
+				self.transport.write(msg)
+				self.transport.write('\n'.encode())
 				
+
 
 	def connection_made(self, transport: transports.Transport):
 		self.transport = transport
@@ -64,13 +80,22 @@ class ClientProtocol(asyncio.Protocol):
 
 class Server:
 	clients: list
+	history: 'deque'
 	
 	def __init__(self):
 		self.clients = []
 
+		# очередь для хранения максимум 10 
+		# последних сообщений
+		self.history = deque(maxlen=10)
+
 	def create_protocol(self):
 		return ClientProtocol(self)
 
+	# метод добавления сообщения к истории сообщений сервера
+	def add_to_history(self, encoded_message):
+		self.history.append(encoded_message)
+		
 	async def start(self):
 		print("Запускается сервер")
 		loop = asyncio.get_running_loop()
