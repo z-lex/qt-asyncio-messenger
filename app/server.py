@@ -59,11 +59,11 @@ class ClientProtocol(asyncio.Protocol):
 	
 	# функция отправки последних сообщений чата
 	def send_history(self):
-		if len(self.server.history) > 0:
+		if not self.server.is_history_empty():
 			self.transport.write(
 				f"\nПоследние сообщения чата:\n".encode()
 			)
-			for msg in self.server.history:
+			for msg in self.server.history():
 				self.transport.write(msg)
 				self.transport.write('\n'.encode())
 				
@@ -80,21 +80,29 @@ class ClientProtocol(asyncio.Protocol):
 
 class Server:
 	clients: list
-	history: 'deque'
+	__history: 'deque'
 	
 	def __init__(self):
 		self.clients = []
 
 		# очередь для хранения максимум 10 
 		# последних сообщений
-		self.history = deque(maxlen=10)
+		self.__history = deque(maxlen=10)
 
 	def create_protocol(self):
 		return ClientProtocol(self)
 
 	# метод добавления сообщения к истории сообщений сервера
 	def add_to_history(self, encoded_message):
-		self.history.append(encoded_message)
+		self.__history.append(encoded_message)
+
+	# функция-генератор для получения истории сообщений
+	def history(self):
+		yield from list(self.__history)
+
+	# функция проверки наличия сообщений в истории сообщений
+	def is_history_empty(self):
+		return len(self.__history) == 0
 		
 	async def start(self):
 		print("Запускается сервер")
