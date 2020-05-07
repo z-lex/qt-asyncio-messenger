@@ -21,10 +21,24 @@ class ClientProtocol(asyncio.Protocol):
 
 		if self.login is None:
 			if decoded.startswith("login:"):
-				self.login = decoded.replace("login:", "").replace("\n","")
-				self.transport.write(
-					f"Привет, {self.login}".encode()
-				)
+				login = decoded.replace("login:", "").replace("\n","")
+				
+				# проверяем, есть ли уже подключенный клиент
+				# с таким логином
+				if login in \
+					[client.login for client in self.server.clients]:
+					self.transport.write(
+						f"Логин {login} занят, попробуйте другой".encode()
+					)
+					# дожидаемся отправки всех буферизованных данных
+					# и закрываем соединение. после этого будет вызван
+					# метод connection_lost
+					self.transport.close()
+				else:
+					self.login = login	
+					self.transport.write(
+						f"Привет, {self.login}".encode()
+					)
 		else:
 			self.send_message(decoded)
 
