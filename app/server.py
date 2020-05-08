@@ -4,6 +4,7 @@
 import asyncio
 from asyncio import transports
 from collections import deque
+from datetime import datetime
 
 class ClientProtocol(asyncio.Protocol):
 	login: str
@@ -46,7 +47,8 @@ class ClientProtocol(asyncio.Protocol):
 			self.send_message(decoded)
 
 	def send_message(self, message):
-		format_string = f"<{self.login}>: {message}"
+		format_string = "[{0:%H:%M:%S}] <{1}>: {2}".\
+			format(datetime.now(), self.login, message)
 		encoded = format_string.encode()
 
 		# добавляем сообщение к истории сервера 
@@ -76,7 +78,7 @@ class ClientProtocol(asyncio.Protocol):
 
 	def connection_lost(self, exc):
 		self.server.clients.remove(self)
-		print("Соединение разорвано", exc)
+		print("Соединение разорвано", exc if not exc is None else "")
 
 class Server:
 	clients: list
